@@ -1,0 +1,20 @@
+name: wings
+description: A sample command-line application.
+version: 1.2.3+4
+# homepage: https://www.example.com
+
+environment:
+  sdk: '>=2.16.0 <3.0.0'
+
+
+dependencies:
+  # From theconduit.dev: A Dart library for manipulating pubspec files.
+  pubspec: ^2.0.1
+
+  # From dart.ninja: A Dart library for comparing and incrementing version numbers with Semantic Versioning.
+  version:  ^2.0.0
+
+dev_dependencies:
+  lints: ^1.0.0
+
+  test: ^1.16.0
