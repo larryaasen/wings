@@ -3,8 +3,8 @@
  */
 
 import 'package:path/path.dart' as pathlib;
-import 'package:pubspec/pubspec.dart';
 
+import 'pubspec_command.dart';
 import 'semver_command.dart';
 
 class ProcessEngine {
@@ -47,10 +47,10 @@ class Play {
   final String name;
   final List<Task> tasks;
 
-  Play({this.name = "", this.tasks = const <Task>[]});
+  Play({this.name = '', this.tasks = const <Task>[]});
 
   void process({required Playbook playbook}) {
-    print("PLAY [$name]");
+    print('PLAY [$name]');
     final context = PlayContext();
     setupVars();
     processTasks(context: context);
@@ -72,7 +72,7 @@ class Task {
   Task({this.name = '', this.command, this.params = const {}});
 
   void process({required PlayContext context, required Play play}) async {
-    print("TASK [$name]");
+    print('TASK [$name]');
     processFunctions();
     processCommand(context: context);
   }
@@ -143,31 +143,64 @@ abstract class WingsCommand {
     required Map<String, dynamic> params,
   });
 
-  CommandResult fail(Map<String, dynamic> params) {
+  /// Generate a fail [CommandResult] to be returned.
+  Future<CommandResult> fail(Map<String, dynamic> params) {
     if (!params.containsKey('_name')) {
       final map = Map<String, dynamic>.from(params);
       map['_name'] = name;
-      return CommandResult(fail: map);
+      return Future.value(CommandResult(fail: map));
     }
-    return CommandResult(fail: params);
+    return Future.value(CommandResult(fail: params));
+  }
+
+  /// Generate a result [CommandResult] to be returned.
+  Future<CommandResult> pass(Map<String, dynamic> params) {
+    if (!params.containsKey('_name')) {
+      final map = Map<String, dynamic>.from(params);
+      map['_name'] = name;
+      return Future.value(CommandResult(result: map));
+    }
+    return Future.value(CommandResult(result: params));
   }
 }
 
+/// The version command verifys the version number in a pubspec. It can also
+/// update the version number in the pubspec.
 class VersionCommand extends WingsCommand {
   @override
   String get name => 'version';
 
   @override
   Map get metadata {
-    return {"version": "1.1"};
+    return {'version': '1.1'};
   }
 
   @override
-  Map get parameterDefinitions => {"command": PlayParameterDef(type: String)};
+  Map get parameterDefinitions => {'action': PlayParameterDef(type: String)};
 
   @override
-  // TODO: implement docDescription
-  String get docDescription => throw UnimplementedError();
+  String get docDescription => '''
+    command: version
+    params:
+      action:
+        verify - verify the version in the pubspec.
+        latest - Use the latest version number in the platforms file, and update
+        to that version.
+        bump - Update the version number by bumping the major, minor, patch, or
+        build.
+          major
+          minor
+          patch
+          build
+
+    wings command version action: verify pubspecPath: ../pubspec.yaml
+    wings command version action: latest pubspecPath: ../pubspec.yaml
+    wings command version action: bump type: major pubspecPath: ../pubspec.yaml
+    wings command version action: bump type: minor pubspecPath: ../pubspec.yaml
+    wings command version action: bump type: patch pubspecPath: ../pubspec.yaml
+    wings command version action: bump type: build pubspecPath: ../pubspec.yaml
+    wings command version action: set version: 1.2.3 pubspecPath: ../pubspec.yaml
+    ''';
 
   @override
   // TODO: implement docExamples
@@ -180,109 +213,121 @@ class VersionCommand extends WingsCommand {
   @override
   bool get supportsCheckMode => true;
 
+  get _actions => {'verify': _verifyAction, 'bump': _bumpAction};
+
+  static final _typesToActions = {
+    'major': 'incrementMajor',
+    'minor': 'incrementMinor',
+    'patch': 'incrementPatch',
+    'build': 'incrementBuild',
+  };
+
   @override
   Future<CommandResult> process({
     required PlayContext context,
     required Map<String, dynamic> params,
   }) async {
-    if (params['command'] == "verify") {
-      if (context.checkMode) {
-        print("check mode: ");
-        print("verify: completed");
-      }
-      final path = params['pubspecPath'];
-      final pubspecCommand = PubspecCommand();
-      final pubspecResult = await pubspecCommand
-          .process(context: context, params: {'path': path});
+    final action = _actions[params['action']];
+    if (action == null) return fail({'message': 'unknown action'});
+    return action(context: context, params: params);
+  }
+
+  Future<CommandResult> _bumpAction(
+      {required PlayContext context,
+      required Map<String, dynamic> params}) async {
+    if (context.checkMode) {
+      // TODO: finish check mode
+    }
+
+    // Read the pubspec
+    final path = params['pubspecPath'];
+    final pubspecCommand = PubspecCommand();
+    final pubspecResult = await pubspecCommand
+        .process(context: context, params: {'action': 'read', 'path': path});
+    if (pubspecResult.didFail) {
+      return fail(pubspecResult.fail!);
+    }
+    final pubspec = pubspecResult.result!;
+
+    final version = pubspec['version'];
+    if (version == null) {
+      return fail({'message': 'pubspec has empty version'});
+    }
+
+    final semverAction = _typesToActions[params['type']];
+    if (semverAction == null) {
+      return fail({'message': 'type is unknown'});
+    }
+
+    final semverCommand = SemverCommand();
+    final semverResult = await semverCommand.process(
+        context: context, params: {'action': semverAction, 'version': version});
+    if (semverResult.hasResult) {
+      final newVersion = semverResult.result!['version'];
+      // Bump the major version
+      final pubspecResult = await pubspecCommand.process(
+          context: context,
+          params: {'action': 'update', 'path': path, 'version': newVersion});
       if (pubspecResult.didFail) {
         return fail(pubspecResult.fail!);
       }
-      final pubspec = pubspecResult.result!;
-
-      final version = pubspec['version'];
-      if (version == null) {
-        return fail({'message': 'empty version'});
-      }
-
-      final semverCommand = SemverCommand();
-      final semverResult = await semverCommand.process(
-          context: context, params: {'command': 'parse', 'version': version});
-      if (semverResult.didFail) {
-        return fail(semverResult.fail!);
-      }
-
-      int? androidBuild;
-      var isAndroidValid = false;
-      if (semverResult.result!['build'] != null &&
-          (semverResult.result!['build'] as String).isNotEmpty) {
-        if (int.tryParse(semverResult.result!['build']) != null) {
-          androidBuild = int.parse(semverResult.result!['build']);
-          isAndroidValid = true;
-        }
-      }
-      var result = {
-        'version': version,
-        'valid': true,
-        'androidValid': isAndroidValid,
-        if (androidBuild != null) 'androidBuild': androidBuild,
-        'build': semverResult.result!['build'],
-        'major': semverResult.result!['major'],
-        'minor': semverResult.result!['minor'],
-        'patch': semverResult.result!['patch'],
-        'preRelease': semverResult.result!['preRelease'],
-        'pubspecPath': pathlib.absolute(path),
-      };
-      return Future.value(CommandResult.result(result));
+      return pass(_result(semverResult.result!, path));
     }
-    return Future.value(fail({'message': 'unknown command'}));
+    return fail(semverResult.fail!);
   }
-}
 
-/// Loads a pubspec file.
-class PubspecCommand extends WingsCommand {
-  @override
-  String get name => 'pubspec';
-
-  @override
-  // TODO: implement docDescription
-  String get docDescription => throw UnimplementedError();
-
-  @override
-  // TODO: implement docExamples
-  String get docExamples => throw UnimplementedError();
-
-  @override
-  // TODO: implement docReturn
-  String get docReturn => throw UnimplementedError();
-
-  @override
-  // TODO: implement metadata
-  Map get metadata => throw UnimplementedError();
-
-  @override
-  // TODO: implement parameterDefinitions
-  Map get parameterDefinitions => throw UnimplementedError();
-
-  @override
-  Future<CommandResult> process({
-    required PlayContext context,
-    required Map<String, dynamic> params,
-  }) async {
-    if (params['path'] == null) {
-      return Future.value(fail({'message': 'missing path'}));
+  Future<CommandResult> _verifyAction(
+      {required PlayContext context,
+      required Map<String, dynamic> params}) async {
+    if (context.checkMode) {
+      print('check mode: ');
+      print('verify: completed');
     }
-    // specify the path to the pubspec.yaml file.
-    var path = params['path'];
-    path = pathlib.absolute(path);
-
-    try {
-      // load pubSpec
-      var pubSpec = await PubSpec.loadFile(path);
-      return CommandResult.result(pubSpec
-          .toJson()
-          .map((key, value) => MapEntry(key, value.toString())));
-    } on Exception catch (e) {
-      return Future.value(fail({'message': 'exception: $e'}));
+    final path = params['pubspecPath'];
+    final pubspecCommand = PubspecCommand();
+    final pubspecResult = await pubspecCommand
+        .process(context: context, params: {'action': 'read', 'path': path});
+    if (pubspecResult.didFail) {
+      return fail(pubspecResult.fail!);
     }
+    final pubspec = pubspecResult.result!;
+
+    final version = pubspec['version'];
+    if (version == null) {
+      return fail({'message': 'empty version'});
+    }
+
+    final semverCommand = SemverCommand();
+    final semverResult = await semverCommand.process(
+        context: context, params: {'action': 'parse', 'version': version});
+    if (semverResult.didFail) {
+      return fail(semverResult.fail!);
+    }
+    return pass(_result(semverResult.result!, path));
+  }
+
+  Map<String, dynamic> _result(Map<String, dynamic> semverResult, String path) {
+    int? androidBuild;
+    var isAndroidValid = false;
+    if (semverResult['build'] != null &&
+        (semverResult['build'] as String).isNotEmpty) {
+      if (int.tryParse(semverResult['build']) != null) {
+        androidBuild = int.parse(semverResult['build']);
+        isAndroidValid = true;
+      }
+    }
+    var result = {
+      'version': semverResult['version'],
+      'valid': true,
+      'androidValid': isAndroidValid,
+      if (androidBuild != null) 'androidBuild': androidBuild,
+      'build': semverResult['build'],
+      'major': semverResult['major'],
+      'minor': semverResult['minor'],
+      'patch': semverResult['patch'],
+      'preRelease': semverResult['preRelease'],
+      'pubspecPath': pathlib.absolute(path),
+    };
+    return result;
   }
 }

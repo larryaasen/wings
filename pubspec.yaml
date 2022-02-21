@@ -6,8 +6,10 @@ version: 1.0.0
 environment:
   sdk: '>=2.16.0 <3.0.0'
 
-
 dependencies:
+  # From dart.dev: Parses raw command-line arguments into a set of options and values.
+  args: ^2.3.0
+
   # From dart.dev: A comprehensive, cross-platform path manipulation library for Dart.
   path: ^1.8.1
 

@@ -1,144 +1,69 @@
-import 'package:wings/wings.dart';
+/*
+ * Copyright (c) 2022 Larry Aasen. All rights reserved.
+ */
+
 import 'package:test/test.dart';
 
+import '../bin/wings.dart';
+import 'helpers.dart';
+
 void main() {
-  group('SemverCommand', () {
-    test('empty', () async {
-      expect(SemverCommand(), isNotNull);
-
-      final ctx = PlayContext();
-      var result = await SemverCommand().process(context: ctx, params: {});
-      expect(result, isNotNull);
-      expect(result.didFail, isTrue);
-      expect(result.fail, isNotNull);
-      expect(result.hasResult, isFalse);
-      expect(result.result, isNull);
-      expect(result.fail!['message'], 'unknown command');
-      expect(result.fail!['_name'], 'semver');
+  group('WingsApp', () {
+    test('run', () async {
+      expect(WingsApp(), isNotNull);
+      // expect(WingsApp().run([]), 1);
     });
 
-    test('parse no version', () async {
-      final ctx = PlayContext();
-      final params = {'command': 'parse'};
-      var result = await SemverCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isTrue);
-      expect(result.fail, isNotNull);
-      expect(result.hasResult, isFalse);
-      expect(result.result, isNull);
-      expect(result.fail!['message'], 'exception');
-      expect(result.fail!['_name'], 'semver');
+    test('processArguments verify', () async {
+      final args = [
+        'command',
+        'version',
+        'action:',
+        'verify',
+        'pubspecPath:',
+        'test/pubspecs/test1_pubspec.yaml'
+      ];
+      final wings = WingsApp();
+      expect(WingsApp(), isNotNull);
+      final result = await wings.processArguments(args);
+      print("done: $result");
     });
 
-    test('parse invalid version', () async {
-      final ctx = PlayContext();
-      final params = {'command': 'parse', 'version': 'AAA'};
-      var result = await SemverCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isTrue);
-      expect(result.fail, isNotNull);
-      expect(result.hasResult, isFalse);
-      expect(result.result, isNull);
-      expect(result.fail!['message'], 'exception');
-      expect(result.fail!['_name'], 'semver');
+    test('processArguments bump', () async {
+      final args = [
+        'command',
+        'version',
+        'action:',
+        'bump',
+        'type:',
+        'major',
+        'pubspecPath:',
+        await copyToTmp('test/pubspecs/test1_pubspec.yaml')
+      ];
+      final wings = WingsApp();
+      expect(WingsApp(), isNotNull);
+      final result = await wings.processArguments(args);
+      print("done: $result");
     });
 
-    test('parse invalid valid version with pre release', () async {
-      final ctx = PlayContext();
-      final params = {'command': 'parse', 'version': '1.2.3-1'};
-      var result = await SemverCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isFalse);
-      expect(result.fail, isNull);
-      expect(result.hasResult, isTrue);
-      expect(result.result, isNotNull);
-      expect(result.result!['build'], '');
-      expect(result.result!['major'], 1);
-      expect(result.result!['minor'], 2);
-      expect(result.result!['patch'], 3);
-      expect((result.result!['preRelease'] as List).length, 1);
-      expect((result.result!['preRelease'] as List)[0], '1');
-    });
+    test('createArgumentRunner', () {
+      final wings = WingsApp();
+      final runner = wings.createArgumentRunner();
+      expect(runner, isNotNull);
+      expect(runner.commands['help'], isNotNull);
+      expect(runner.commands['command'], isNotNull);
+      expect(runner.commands['playbook'], isNotNull);
+      expect(runner.description, 'A Flutter helper tool.');
+      expect(runner.executableName, 'wings');
+      expect(runner.invocation, 'wings <command> [arguments]');
+      expect(runner.usage, isNotNull);
 
-    test('parse invalid valid version with build', () async {
-      final ctx = PlayContext();
-      final params = {'command': 'parse', 'version': '1.2.3+4'};
-      var result = await SemverCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isFalse);
-      expect(result.fail, isNull);
-      expect(result.hasResult, isTrue);
-      expect(result.result, isNotNull);
-      expect(result.result!['build'], '4');
-      expect(result.result!['major'], 1);
-      expect(result.result!['minor'], 2);
-      expect(result.result!['patch'], 3);
-      expect((result.result!['preRelease'] as List).length, 0);
-    });
-  });
-
-  group('VersionCommand', () {
-    test('no params', () async {
-      expect(VersionCommand(), isNotNull);
-
-      final ctx = PlayContext();
-      var result = await VersionCommand().process(context: ctx, params: {});
-      expect(result, isNotNull);
-      expect(result.didFail, isTrue);
-      expect(result.fail, isNotNull);
-      expect(result.hasResult, isFalse);
-      expect(result.result, isNull);
-      expect(result.fail!['message'], 'unknown command');
-      expect(result.fail!['_name'], 'version');
-    });
-
-    test('verify missing directory', () async {
-      final params = {'command': 'verify'};
-      final ctx = PlayContext();
-      var result = await VersionCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isTrue);
-      expect(result.fail, isNotNull);
-      expect(result.hasResult, isFalse);
-      expect(result.result, isNull);
-      expect(result.fail!['message'], 'missing path');
-      expect(result.fail!['_name'], 'pubspec');
-    });
-
-    test('verify missing pubspec file', () async {
-      final params = {'command': 'verify', 'pubspecPath': '/'};
-      final ctx = PlayContext();
-      var result = await VersionCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isTrue);
-      expect(result.fail, isNotNull);
-      expect(result.hasResult, isFalse);
-      expect(result.result, isNull);
-      expect(result.fail!['message'],
-          'exception: FileSystemException: Cannot open file, path = \'/\' (OS Error: Is a directory, errno = 21)');
-      expect(result.fail!['_name'], 'pubspec');
-    });
-
-    test('verify file', () async {
-      final params = {
-        'command': 'verify',
-        'pubspecPath': 'test/pubspecs/test1_pubspec.yaml'
-      };
-      final ctx = PlayContext();
-      var result = await VersionCommand().process(context: ctx, params: params);
-      expect(result, isNotNull);
-      expect(result.didFail, isFalse);
-      expect(result.fail, isNull);
-      expect(result.hasResult, isTrue);
-      expect(result.result, isNotNull);
-      expect(result.result!['version'], '1.2.3+4');
-      expect(result.result!['valid'], isTrue);
-      expect(result.result!['androidValid'], isTrue);
-      expect(result.result!['build'], '4');
-      expect(result.result!['major'], 1);
-      expect(result.result!['minor'], 2);
-      expect(result.result!['patch'], 3);
-      expect((result.result!['preRelease'] as List).length, 0);
+      final command = runner.commands['command'];
+      expect(command!, isNotNull);
+      expect(command.description, 'Runs a command.');
+      expect(command.name, 'command');
+      expect(command.summary, 'Runs a command.');
+      expect(command.usage.startsWith(command.description), isTrue);
     });
   });
 }
