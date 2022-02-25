@@ -11,6 +11,9 @@ class SemverCommand extends WingsCommand {
   String get name => 'semver';
 
   @override
+  String get shortDescription => 'Verifies or updates semantic versions.';
+
+  @override
   // TODO: implement docDescription
   String get docDescription => throw UnimplementedError();
 

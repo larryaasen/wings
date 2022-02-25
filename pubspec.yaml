@@ -10,6 +10,9 @@ dependencies:
   # From dart.dev: Parses raw command-line arguments into a set of options and values.
   args: ^2.3.0
 
+  # From dart.dev: internationalization and localization facilities
+  intl: ^0.17.0
+
   # From dart.dev: A comprehensive, cross-platform path manipulation library for Dart.
   path: ^1.8.1
 

@@ -56,14 +56,21 @@ void main() {
       expect(runner.description, 'A Flutter helper tool.');
       expect(runner.executableName, 'wings');
       expect(runner.invocation, 'wings <command> [arguments]');
-      expect(runner.usage, isNotNull);
+      expect(runner.usage.startsWith(runner.description), isTrue);
 
       final command = runner.commands['command'];
       expect(command!, isNotNull);
-      expect(command.description, 'Runs a command.');
+      expect(command.description, 'command: Runs a command.');
       expect(command.name, 'command');
-      expect(command.summary, 'Runs a command.');
+      expect(command.summary, 'command: Runs a command.');
       expect(command.usage.startsWith(command.description), isTrue);
+      print(command.usage);
+
+      expect(command.subcommands.length, 4);
+      expect(command.subcommands['version']!.name, 'version');
+      expect(command.subcommands['pubspec']!.name, 'pubspec');
+      expect(command.subcommands['semver']!.name, 'semver');
+      expect(command.subcommands['shell']!.name, 'shell');
     });
   });
 }

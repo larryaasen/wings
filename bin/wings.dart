@@ -20,29 +20,17 @@ class WingsApp {
   /// Runs the app.
   /// Returns the exit code.
   Future<int> run(List<String> arguments) async {
-    // if (arguments.isEmpty) {
-    //   return 1;
-    // }
-
     final result = await processArguments(arguments);
-
-    return 0;
-
-    final playBook = testPlaybook();
-
-    final engine = ProcessEngine();
-    engine.run(inputPlaybook: playBook);
+    return result ? 0 : 1;
   }
 
   Future<bool> processArguments(List<String> arguments) async {
     final runner = createArgumentRunner();
-    // final results = runner.parse(arguments);
-    // print('usage:\n${runner.usage}');
     try {
       await runner.run(arguments);
       return Future.value(true);
     } on Exception catch (e) {
-      print("command runner exception: $e");
+      WingsLog.error("command runner exception: $e");
     }
 
     return Future.value(false);
@@ -51,9 +39,7 @@ class WingsApp {
   CommandRunner createArgumentRunner() {
     final runner = CommandRunner('wings', 'A Flutter helper tool.');
 
-    // Add commands
-    // runner.addCommand(
-    //     CLICommand(name: 'command', description: 'Runs a command.'));
+    // Add top level commands
     runner.addCommand(CommandCommand());
     runner.addCommand(PlayBookCommand());
 
@@ -71,72 +57,72 @@ class CommandCommand extends Command {
   final name = "command";
 
   @override
-  final description = "Runs a command.";
+  final description = "command: Runs a command.";
+
+  late List<WingsCommand> _commands;
 
   CommandCommand() {
-    // we can add command specific arguments here.
-    // [argParser] is automatically created by the parent class.
-    argParser.addFlag('all', abbr: 'a');
+    _commands = gatherCommands();
+    for (final command in _commands) {
+      addSubcommand(CLICommand(
+          name: command.name,
+          description: command.shortDescription,
+          wingsCommand: command));
+    }
   }
 
-  // [run] may also return a Future.
+  /// Process all of the entered arguments, and run the command.
   @override
   void run() async {
-    if (argResults == null) {
-      return;
-    }
+    if (argResults == null) return;
+
     if (argResults!.arguments.isEmpty) {
-      print("CommandCommand.run: missing command name");
+      WingsLog.error("CommandCommand.run: missing command name");
       return;
     }
     final args = argResults!.rest.toList();
     final commandName = args.removeAt(0);
     if (!isValidCommandName(commandName)) {
-      print("CommandCommand.run: invalid command name: $commandName");
+      WingsLog.error("CommandCommand.run: invalid command name: $commandName");
       return;
     }
 
-    bool isKey = true;
-    String? key, value;
-    final params = <String, String>{};
-    for (var arg in args) {
-      if (isKey) {
-        isKey = false;
-        key = arg.replaceAll(':', '');
-      } else {
-        isKey = true;
-        value = arg;
-        params[key!] = value;
-      }
-    }
+    final params = argsToParams(args);
     final command = commandForName(commandName);
     if (command == null) {
       return;
     }
     final result =
         await command.process(context: PlayContext(), params: params);
-    print('Command [$commandName] completed.\n$result');
+    WingsLog.message('Command [$commandName] completed.\n$result');
+  }
+
+  List<WingsCommand> gatherCommands() {
+    return [
+      VersionCommand(),
+      PubspecCommand(),
+      SemverCommand(),
+      ShellCommand(),
+    ];
   }
 
   bool isValidCommandName(String name) {
-    return name == 'version' || name == 'pubspec' || name == 'semver';
+    return _commands.any((command) => command.name == name);
   }
 
   WingsCommand? commandForName(String name) {
-    final commands = {
-      'version': VersionCommand(),
-      'pubspec': PubspecCommand(),
-      'semver': SemverCommand()
-    };
-    return commands[name];
+    for (final command in _commands) {
+      if (command.name == name) return command;
+    }
+    return null;
   }
 }
 
-// Not used. Designed for generic CLI commands.
+// Designed for generic CLI commands.
 class CLICommand extends Command {
   final String _name;
   final String _description;
-  final Function _run;
+  final WingsCommand wingsCommand;
 
   @override
   String get name => _name;
@@ -146,13 +132,20 @@ class CLICommand extends Command {
   CLICommand(
       {required String name,
       required String description,
-      required Function run})
+      required this.wingsCommand})
       : _name = name,
-        _description = description,
-        _run = run;
+        _description = description;
 
   @override
-  void run() => _run();
+  void run() async {
+    Map<String, String> params = {};
+    if (argResults != null) {
+      params = argsToParams(argResults!.rest);
+    }
+    final result =
+        await wingsCommand.process(context: PlayContext(), params: params);
+    print(result);
+  }
 }
 
 class PlayBookCommand extends Command {
@@ -162,7 +155,7 @@ class PlayBookCommand extends Command {
   final name = "playbook";
 
   @override
-  final description = "Runs a Playbook.";
+  final description = "playbook: Runs a Playbook.";
 
   PlayBookCommand() {
     // we can add command specific arguments here.
@@ -179,17 +172,26 @@ class PlayBookCommand extends Command {
   }
 }
 
-void main(List<String> arguments) async {
-  exitCode = await WingsApp().run(arguments);
+extension CommandParams on Command {
+  Map<String, String> argsToParams(List<String> args) {
+    bool isKey = true;
+    String? key, value;
+    final params = <String, String>{};
+    for (var arg in args) {
+      if (isKey) {
+        isKey = false;
+        key = arg.replaceAll(':', '');
+      } else {
+        isKey = true;
+        value = arg;
+        params[key!] = value;
+      }
+    }
+    return params;
+  }
 }
 
-Playbook testPlaybook() {
-  final version = VersionCommand();
-  final task = Task(
-      name: 'Verify the version',
-      command: version,
-      params: {'action': 'verify', 'pubspecPath': './pubspec.yaml'});
-  final play = Play(name: 'Versioning', tasks: [task]);
-  final playBook = Playbook(plays: [play]);
-  return playBook;
+/// The main CLI app.
+void main(List<String> arguments) async {
+  exitCode = await WingsApp().run(arguments);
 }

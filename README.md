@@ -14,14 +14,23 @@ of actions.
 pub global activate wings
 ```
 
-# Commands
+# Usage
 
-* playbook
-* version
+```
+wings command <command_name>
+
+where command_name is:
+    - version
+    - pubspec
+    - semver
+    - shell
+
+wings playbook <playbook_name>
+```
 
 ## Command: playbook
 
-## Command: version
+## Command: command
 
 ### Action: verify
 

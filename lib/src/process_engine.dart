@@ -2,10 +2,22 @@
  * Copyright (c) 2022 Larry Aasen. All rights reserved.
  */
 
+import 'package:intl/intl.dart';
 import 'package:path/path.dart' as pathlib;
 
 import 'pubspec_command.dart';
 import 'semver_command.dart';
+
+Playbook testPlaybook() {
+  final version = VersionCommand();
+  final task = Task(
+      name: 'Verify the version',
+      command: version,
+      params: {'action': 'verify', 'pubspecPath': './pubspec.yaml'});
+  final play = Play(name: 'Versioning', tasks: [task]);
+  final playBook = Playbook(plays: [play]);
+  return playBook;
+}
 
 class ProcessEngine {
   final _playbooks = <Playbook>[];
@@ -130,9 +142,13 @@ class CommandResult {
 }
 
 abstract class WingsCommand {
+  /// The name of the command. It should be one word and lower case. Use by the
+  /// CLI and Playbooks.
   String get name;
+
   Map get parameterDefinitions;
   Map get metadata;
+  String get shortDescription;
   String get docDescription;
   String get docExamples;
   String get docReturn;
@@ -177,6 +193,9 @@ class VersionCommand extends WingsCommand {
 
   @override
   Map get parameterDefinitions => {'action': PlayParameterDef(type: String)};
+
+  @override
+  String get shortDescription => 'Verifies or updates a version number.';
 
   @override
   String get docDescription => '''
@@ -329,5 +348,24 @@ class VersionCommand extends WingsCommand {
       'pubspecPath': pathlib.absolute(path),
     };
     return result;
+  }
+}
+
+class WingsLog {
+  static void message(String message, {String group = ''}) {
+    _output(message, group);
+  }
+
+  static void error(String message, {String group = ''}) {
+    _output(message, group);
+  }
+
+  static final formatterLogMilli = DateFormat('y/M/d H:mm:ss.SSS');
+  static final formatSystemLog = formatterLogMilli.format(DateTime.now());
+
+  static void _output(String message, String group) {
+    final groupMsg = group.isEmpty ? '' : " [$group]";
+    final timeMsg = formatSystemLog;
+    print("$timeMsg$groupMsg $message");
   }
 }

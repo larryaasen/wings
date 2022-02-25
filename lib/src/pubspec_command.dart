@@ -16,6 +16,9 @@ class PubspecCommand extends WingsCommand {
   String get name => 'pubspec';
 
   @override
+  String get shortDescription => 'Reads or updates a pubspec file.';
+
+  @override
   // TODO: implement docDescription
   String get docDescription => throw UnimplementedError();
 
