@@ -17,6 +17,18 @@ pub global activate wings
 # Usage
 
 ```
+wings <command> [arguments]
+
+where command is:
+    - playbook
+    - command
+```
+
+```
+wings playbook <playbook_name>
+```
+
+```
 wings command <command_name>
 
 where command_name is:
@@ -24,8 +36,6 @@ where command_name is:
     - pubspec
     - semver
     - shell
-
-wings playbook <playbook_name>
 ```
 
 ## Command: playbook

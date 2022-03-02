@@ -51,19 +51,16 @@ class WingsApp {
 }
 
 class CommandCommand extends Command {
-  // The [name] and [description] properties must be defined by every
-  // subclass.
   @override
   final name = "command";
 
   @override
   final description = "command: Runs a command.";
 
-  late List<WingsCommand> _commands;
+  final WingsCommands _commands = WingsCommands();
 
   CommandCommand() {
-    _commands = gatherCommands();
-    for (final command in _commands) {
+    for (final command in _commands.all) {
       addSubcommand(CLICommand(
           name: command.name,
           description: command.shortDescription,
@@ -82,39 +79,19 @@ class CommandCommand extends Command {
     }
     final args = argResults!.rest.toList();
     final commandName = args.removeAt(0);
-    if (!isValidCommandName(commandName)) {
+    if (!_commands.isValidCommandName(commandName)) {
       WingsLog.error("CommandCommand.run: invalid command name: $commandName");
       return;
     }
 
     final params = argsToParams(args);
-    final command = commandForName(commandName);
+    final command = _commands.commandForName(commandName);
     if (command == null) {
       return;
     }
     final result =
         await command.process(context: PlayContext(), params: params);
     WingsLog.message('Command [$commandName] completed.\n$result');
-  }
-
-  List<WingsCommand> gatherCommands() {
-    return [
-      VersionCommand(),
-      PubspecCommand(),
-      SemverCommand(),
-      ShellCommand(),
-    ];
-  }
-
-  bool isValidCommandName(String name) {
-    return _commands.any((command) => command.name == name);
-  }
-
-  WingsCommand? commandForName(String name) {
-    for (final command in _commands) {
-      if (command.name == name) return command;
-    }
-    return null;
   }
 }
 
@@ -148,30 +125,6 @@ class CLICommand extends Command {
   }
 }
 
-class PlayBookCommand extends Command {
-  // The [name] and [description] properties must be defined by every
-  // subclass.
-  @override
-  final name = "playbook";
-
-  @override
-  final description = "playbook: Runs a Playbook.";
-
-  PlayBookCommand() {
-    // we can add command specific arguments here.
-    // [argParser] is automatically created by the parent class.
-    argParser.addFlag('all', abbr: 'a');
-  }
-
-  // [run] may also return a Future.
-  @override
-  void run() {
-    // [argResults] is set before [run()] is called and contains the flags/options
-    // passed to this command.
-    print(argResults?['all']);
-  }
-}
-
 extension CommandParams on Command {
   Map<String, String> argsToParams(List<String> args) {
     bool isKey = true;
@@ -188,6 +141,49 @@ extension CommandParams on Command {
       }
     }
     return params;
+  }
+}
+
+class PlayBookCommand extends Command {
+  // The [name] and [description] properties must be defined by every
+  // subclass.
+  @override
+  final name = "playbook";
+
+  @override
+  final description = "playbook: Runs a Playbook.";
+
+  @override
+  String get invocation => 'wings playbook [options] playbook [playbook ...]';
+
+  PlayBookCommand() {
+    // we can add command specific arguments here.
+    // [argParser] is automatically created by the parent class.
+    argParser.addOption('playbook_name', abbr: 'p', help: 'The playbook ');
+  }
+
+  /// Process all of the entered arguments, and run the command.
+  @override
+  void run() async {
+    if (argResults == null) return;
+
+    if (argResults!.arguments.isEmpty) {
+      WingsLog.error("PlayBookCommand.run: missing playbook name");
+      return;
+    }
+
+    final playbookNames = argResults!.rest.toList();
+
+    final environment = await WingsLoader().load(
+      playbookNames: playbookNames,
+      options: WingsOptions(),
+      yamlLoader: YamlLoader(),
+      playbookLoader: PlaybookLoader(),
+    );
+    if (environment.errors.isNotEmpty) {
+      print("Playbook errors:\n${environment.errors.join('\n')}");
+    }
+    ProcessEngine().run(environment: environment);
   }
 }
 

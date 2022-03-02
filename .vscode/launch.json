@@ -8,7 +8,8 @@
             "name": "wings",
             "request": "launch",
             "type": "dart",
-            "program": "bin/wings.dart"
+            "program": "bin/wings.dart",
+            "args": ["playbook", "test/playbooks/p1.yaml", "p2"]
         }
     ]
 }

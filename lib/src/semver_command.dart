@@ -5,10 +5,11 @@
 import 'package:version/version.dart';
 
 import 'process_engine.dart';
+import 'wings_commands.dart';
 
 class SemverCommand extends WingsCommand {
   @override
-  String get name => 'semver';
+  String get name => 'wings.semver';
 
   @override
   String get shortDescription => 'Verifies or updates semantic versions.';

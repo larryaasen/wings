@@ -2,45 +2,188 @@
  * Copyright (c) 2022 Larry Aasen. All rights reserved.
  */
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:intl/intl.dart';
-import 'package:path/path.dart' as pathlib;
+import 'package:yaml/yaml.dart' as yaml;
 
-import 'pubspec_command.dart';
-import 'semver_command.dart';
+import 'wings_commands.dart';
 
-Playbook testPlaybook() {
-  final version = VersionCommand();
-  final task = Task(
-      name: 'Verify the version',
-      command: version,
-      params: {'action': 'verify', 'pubspecPath': './pubspec.yaml'});
-  final play = Play(name: 'Versioning', tasks: [task]);
-  final playBook = Playbook(plays: [play]);
-  return playBook;
+class YamlLoader {
+  /// Loads a playbook file and returns a list of the plays.
+  /// Returns a [List] containing the plays in the file.
+  /// Throws when the file does not exist, or the YAML does not load.
+  Future<List> loadPlaybook(String playbookName) async {
+    // Read YAML file
+    final file = File(playbookName);
+    if (!file.existsSync()) {
+      throw Exception('Playbook does not exist: $playbookName');
+    }
+    final contents = await file.readAsString();
+    if (contents.isNotEmpty) {
+      try {
+        // Parse YAML file
+        final doc = yaml.loadYaml(contents);
+
+        // Convert to a JSON string
+        final rawJson = json.encode(doc);
+
+        // Convert JSON string to a List
+        final plays = jsonDecode(rawJson);
+
+        if (plays is List) return plays;
+        throw Exception('invalid yaml file $playbookName');
+      } on Exception catch (e) {
+        throw Exception('yaml exception $e for file $playbookName');
+      }
+    }
+
+    return [];
+  }
+}
+
+class PlaybookLoader {
+  final WingsCommands _commands = WingsCommands();
+
+  /// Create playbook from a List
+  Future<Playbooks> load(List plays) async {
+    List<Play> allPlays = [];
+    for (final play in plays) {
+      String? playName;
+      if (play['name'] is String) {
+        playName = play['name'];
+      }
+      if (play['tasks'] is List) {
+        List<Task> allTasks = [];
+        List tasks = play['tasks'];
+        for (final task in tasks) {
+          if (task is Map) {
+            String? taskName;
+            WingsCommand? taskCommand;
+            Map<String, dynamic>? taskCommandParams;
+
+            for (final key in task.keys) {
+              if (key == 'name') {
+                taskName = task[key];
+              } else if (key == 'dada') {
+              } else if (isTaskCommand(key)) {
+                final commandName = key;
+                taskCommand = _commands.commandForName(commandName);
+                if (task[key] is Map) {
+                  final Map params = task[key];
+                  taskCommandParams = params
+                      .map((key, value) => MapEntry(key.toString(), value));
+                }
+              }
+            }
+            if (taskCommand != null) {
+              allTasks.add(Task(
+                  name: taskName ?? '',
+                  command: taskCommand,
+                  params: taskCommandParams ?? {}));
+            }
+          }
+        }
+        allPlays.add(Play(name: playName ?? '', tasks: allTasks));
+      }
+    }
+    final playbook = Playbook(plays: allPlays);
+    return Playbooks(all: [playbook]);
+  }
+
+  bool isTaskCommand(String key) {
+    return _commands.isValidCommandName(key);
+  }
+}
+
+class WingsEnvironment {
+  final WingsOptions options;
+  final Playbooks playbooks;
+  final List<String> errors;
+
+  WingsEnvironment({
+    required this.options,
+    required this.playbooks,
+    required this.errors,
+  });
+}
+
+class WingsOptions {
+  final bool verbose;
+
+  WingsOptions({this.verbose = false});
+}
+
+class WingsLoader {
+  /// Load all playbooks and create the environment.
+  Future<WingsEnvironment> load({
+    required List<String> playbookNames,
+    required WingsOptions options,
+    required YamlLoader yamlLoader,
+    required PlaybookLoader playbookLoader,
+  }) async {
+    var validNames = <String>[];
+    List<String> errors = [];
+    for (final playbookName in playbookNames) {
+      if (isValidPlaybookName(playbookName)) {
+        validNames.add(playbookName);
+      } else {
+        errors.add('invalid playbook name: $playbookName');
+        WingsLog.error(
+            "WingsLoader.load: invalid playbook name: $playbookName");
+      }
+    }
+
+    List<Playbook> allPlaybooks = [];
+    for (final playbookName in validNames) {
+      try {
+        final plays = await yamlLoader.loadPlaybook(playbookName);
+        final playbooks = await playbookLoader.load(plays);
+        allPlaybooks.addAll(playbooks.all);
+      } on Exception catch (e) {
+        errors.add(e.toString());
+      }
+    }
+
+    return WingsEnvironment(
+      options: options,
+      playbooks: Playbooks(all: allPlaybooks),
+      errors: errors,
+    );
+  }
+
+  bool isValidPlaybookName(String playbookName) {
+    return playbookName.isNotEmpty;
+  }
 }
 
 class ProcessEngine {
   final _playbooks = <Playbook>[];
 
-  void run({Playbook? inputPlaybook}) {
-    if (inputPlaybook != null) {
-      _playbooks.add(inputPlaybook);
-    }
+  void run({required WingsEnvironment environment}) async {
+    _playbooks.addAll(environment.playbooks.all);
 
     setup();
     processInputs();
-    processPlaybooks();
+    await processPlaybooks();
   }
 
   void setup() {}
 
   void processInputs() {}
 
-  void processPlaybooks() {
+  Future<void> processPlaybooks() async {
     for (var playbook in _playbooks) {
-      playbook.process();
+      await playbook.process();
     }
   }
+}
+
+class Playbooks {
+  final List<Playbook> all;
+
+  Playbooks({required this.all});
 }
 
 class Playbook {
@@ -48,9 +191,9 @@ class Playbook {
 
   Playbook({this.plays = const <Play>[]});
 
-  void process() {
+  Future<void> process() async {
     for (var play in plays) {
-      play.process(playbook: this);
+      await play.process(playbook: this);
     }
   }
 }
@@ -61,18 +204,19 @@ class Play {
 
   Play({this.name = '', this.tasks = const <Task>[]});
 
-  void process({required Playbook playbook}) {
-    print('PLAY [$name]');
+  Future<void> process({required Playbook playbook}) async {
+    print('\nPLAY [$name]');
     final context = PlayContext();
     setupVars();
-    processTasks(context: context);
+    await processTasks(context: context);
   }
 
   void setupVars() {}
-  void processTasks({required PlayContext context}) {
+  Future<bool> processTasks({required PlayContext context}) async {
     for (var task in tasks) {
-      task.process(context: context, play: this);
+      await task.process(context: context, play: this);
     }
+    return true;
   }
 }
 
@@ -83,18 +227,27 @@ class Task {
 
   Task({this.name = '', this.command, this.params = const {}});
 
-  void process({required PlayContext context, required Play play}) async {
-    print('TASK [$name]');
+  String get taskName {
+    if (name.isNotEmpty) return name;
+    return command != null ? command!.name : '';
+  }
+
+  Future<bool> process(
+      {required PlayContext context, required Play play}) async {
+    print('\nTASK [$taskName]');
     processFunctions();
-    processCommand(context: context);
+    await processCommand(context: context);
+    return true;
   }
 
   void processFunctions() {}
-  void processCommand({required PlayContext context}) async {
+  Future<bool> processCommand({required PlayContext context}) async {
     if (command != null) {
       final result = await command?.process(context: context, params: params);
       print(result);
+      return true;
     }
+    return false;
   }
 }
 
@@ -138,216 +291,6 @@ class CommandResult {
   @override
   String toString() {
     return didFail ? 'fail: ${fail.toString()}' : result.toString();
-  }
-}
-
-abstract class WingsCommand {
-  /// The name of the command. It should be one word and lower case. Use by the
-  /// CLI and Playbooks.
-  String get name;
-
-  Map get parameterDefinitions;
-  Map get metadata;
-  String get shortDescription;
-  String get docDescription;
-  String get docExamples;
-  String get docReturn;
-  bool get supportsCheckMode => false;
-
-  Future<CommandResult> process({
-    required PlayContext context,
-    required Map<String, dynamic> params,
-  });
-
-  /// Generate a fail [CommandResult] to be returned.
-  Future<CommandResult> fail(Map<String, dynamic> params) {
-    if (!params.containsKey('_name')) {
-      final map = Map<String, dynamic>.from(params);
-      map['_name'] = name;
-      return Future.value(CommandResult(fail: map));
-    }
-    return Future.value(CommandResult(fail: params));
-  }
-
-  /// Generate a result [CommandResult] to be returned.
-  Future<CommandResult> pass(Map<String, dynamic> params) {
-    if (!params.containsKey('_name')) {
-      final map = Map<String, dynamic>.from(params);
-      map['_name'] = name;
-      return Future.value(CommandResult(result: map));
-    }
-    return Future.value(CommandResult(result: params));
-  }
-}
-
-/// The version command verifys the version number in a pubspec. It can also
-/// update the version number in the pubspec.
-class VersionCommand extends WingsCommand {
-  @override
-  String get name => 'version';
-
-  @override
-  Map get metadata {
-    return {'version': '1.1'};
-  }
-
-  @override
-  Map get parameterDefinitions => {'action': PlayParameterDef(type: String)};
-
-  @override
-  String get shortDescription => 'Verifies or updates a version number.';
-
-  @override
-  String get docDescription => '''
-    command: version
-    params:
-      action:
-        verify - verify the version in the pubspec.
-        latest - Use the latest version number in the platforms file, and update
-        to that version.
-        bump - Update the version number by bumping the major, minor, patch, or
-        build.
-          major
-          minor
-          patch
-          build
-
-    wings command version action: verify pubspecPath: ../pubspec.yaml
-    wings command version action: latest pubspecPath: ../pubspec.yaml
-    wings command version action: bump type: major pubspecPath: ../pubspec.yaml
-    wings command version action: bump type: minor pubspecPath: ../pubspec.yaml
-    wings command version action: bump type: patch pubspecPath: ../pubspec.yaml
-    wings command version action: bump type: build pubspecPath: ../pubspec.yaml
-    wings command version action: set version: 1.2.3 pubspecPath: ../pubspec.yaml
-    ''';
-
-  @override
-  // TODO: implement docExamples
-  String get docExamples => throw UnimplementedError();
-
-  @override
-  // TODO: implement docReturn
-  String get docReturn => throw UnimplementedError();
-
-  @override
-  bool get supportsCheckMode => true;
-
-  get _actions => {'verify': _verifyAction, 'bump': _bumpAction};
-
-  static final _typesToActions = {
-    'major': 'incrementMajor',
-    'minor': 'incrementMinor',
-    'patch': 'incrementPatch',
-    'build': 'incrementBuild',
-  };
-
-  @override
-  Future<CommandResult> process({
-    required PlayContext context,
-    required Map<String, dynamic> params,
-  }) async {
-    final action = _actions[params['action']];
-    if (action == null) return fail({'message': 'unknown action'});
-    return action(context: context, params: params);
-  }
-
-  Future<CommandResult> _bumpAction(
-      {required PlayContext context,
-      required Map<String, dynamic> params}) async {
-    if (context.checkMode) {
-      // TODO: finish check mode
-    }
-
-    // Read the pubspec
-    final path = params['pubspecPath'];
-    final pubspecCommand = PubspecCommand();
-    final pubspecResult = await pubspecCommand
-        .process(context: context, params: {'action': 'read', 'path': path});
-    if (pubspecResult.didFail) {
-      return fail(pubspecResult.fail!);
-    }
-    final pubspec = pubspecResult.result!;
-
-    final version = pubspec['version'];
-    if (version == null) {
-      return fail({'message': 'pubspec has empty version'});
-    }
-
-    final semverAction = _typesToActions[params['type']];
-    if (semverAction == null) {
-      return fail({'message': 'type is unknown'});
-    }
-
-    final semverCommand = SemverCommand();
-    final semverResult = await semverCommand.process(
-        context: context, params: {'action': semverAction, 'version': version});
-    if (semverResult.hasResult) {
-      final newVersion = semverResult.result!['version'];
-      // Bump the major version
-      final pubspecResult = await pubspecCommand.process(
-          context: context,
-          params: {'action': 'update', 'path': path, 'version': newVersion});
-      if (pubspecResult.didFail) {
-        return fail(pubspecResult.fail!);
-      }
-      return pass(_result(semverResult.result!, path));
-    }
-    return fail(semverResult.fail!);
-  }
-
-  Future<CommandResult> _verifyAction(
-      {required PlayContext context,
-      required Map<String, dynamic> params}) async {
-    if (context.checkMode) {
-      print('check mode: ');
-      print('verify: completed');
-    }
-    final path = params['pubspecPath'];
-    final pubspecCommand = PubspecCommand();
-    final pubspecResult = await pubspecCommand
-        .process(context: context, params: {'action': 'read', 'path': path});
-    if (pubspecResult.didFail) {
-      return fail(pubspecResult.fail!);
-    }
-    final pubspec = pubspecResult.result!;
-
-    final version = pubspec['version'];
-    if (version == null) {
-      return fail({'message': 'empty version'});
-    }
-
-    final semverCommand = SemverCommand();
-    final semverResult = await semverCommand.process(
-        context: context, params: {'action': 'parse', 'version': version});
-    if (semverResult.didFail) {
-      return fail(semverResult.fail!);
-    }
-    return pass(_result(semverResult.result!, path));
-  }
-
-  Map<String, dynamic> _result(Map<String, dynamic> semverResult, String path) {
-    int? androidBuild;
-    var isAndroidValid = false;
-    if (semverResult['build'] != null &&
-        (semverResult['build'] as String).isNotEmpty) {
-      if (int.tryParse(semverResult['build']) != null) {
-        androidBuild = int.parse(semverResult['build']);
-        isAndroidValid = true;
-      }
-    }
-    var result = {
-      'version': semverResult['version'],
-      'valid': true,
-      'androidValid': isAndroidValid,
-      if (androidBuild != null) 'androidBuild': androidBuild,
-      'build': semverResult['build'],
-      'major': semverResult['major'],
-      'minor': semverResult['minor'],
-      'patch': semverResult['patch'],
-      'preRelease': semverResult['preRelease'],
-      'pubspecPath': pathlib.absolute(path),
-    };
-    return result;
   }
 }
 

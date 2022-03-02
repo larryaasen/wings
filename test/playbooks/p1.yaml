@@ -1,0 +1,11 @@
+---
+- name: Run all commands
+
+  tasks:
+  - name: Verify pubspec version
+    wings.version:
+      action: wings.verify
+      pubspecPath: test/pubspecs/test1_pubspec.yaml
+  - name:
+    wings.shell:
+      cmd: ls

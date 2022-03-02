@@ -9,11 +9,12 @@ import 'package:pubspec/pubspec.dart';
 
 import 'process_engine.dart';
 import 'semver_command.dart';
+import 'wings_commands.dart';
 
 /// Read or write a pubspec file.
 class PubspecCommand extends WingsCommand {
   @override
-  String get name => 'pubspec';
+  String get name => 'wings.pubspec';
 
   @override
   String get shortDescription => 'Reads or updates a pubspec file.';
