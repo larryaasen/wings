@@ -7,9 +7,8 @@ import 'dart:io';
 import 'package:path/path.dart' as pathlib;
 import 'package:pubspec/pubspec.dart';
 
-import 'process_engine.dart';
 import 'semver_command.dart';
-import 'wings_commands.dart';
+import '../command_support/wings_commands.dart';
 
 /// Read or write a pubspec file.
 class PubspecCommand extends WingsCommand {

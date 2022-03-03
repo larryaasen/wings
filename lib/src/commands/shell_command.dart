@@ -4,8 +4,8 @@
 
 import 'dart:io';
 
-import 'process_engine.dart';
-import 'wings_commands.dart';
+// import 'process_engine.dart';
+import '../command_support/wings_commands.dart';
 
 /// Executes a shell command.
 class ShellCommand extends WingsCommand {

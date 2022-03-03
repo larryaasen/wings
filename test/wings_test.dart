@@ -66,11 +66,12 @@ void main() {
       expect(command.usage.startsWith(command.description), isTrue);
       print(command.usage);
 
-      expect(command.subcommands.length, 4);
-      expect(command.subcommands['version']!.name, 'version');
-      expect(command.subcommands['pubspec']!.name, 'pubspec');
-      expect(command.subcommands['semver']!.name, 'semver');
-      expect(command.subcommands['shell']!.name, 'shell');
+      expect(command.subcommands.length, 5);
+      expect(command.subcommands['wings.debug']!.name, 'wings.debug');
+      expect(command.subcommands['wings.pubspec']!.name, 'wings.pubspec');
+      expect(command.subcommands['wings.semver']!.name, 'wings.semver');
+      expect(command.subcommands['wings.shell']!.name, 'wings.shell');
+      expect(command.subcommands['wings.version']!.name, 'wings.version');
     });
   });
 }

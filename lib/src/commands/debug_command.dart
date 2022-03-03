@@ -2,13 +2,10 @@
  * Copyright (c) 2022 Larry Aasen. All rights reserved.
  */
 
-import 'dart:io';
-
-import 'process_engine.dart';
-import 'wings_commands.dart';
+import '../command_support/wings_commands.dart';
 
 /// Logs messages during execution.
-class ShellCommand extends WingsCommand {
+class DebugCommand extends WingsCommand {
   @override
   String get name => 'wings.debug';
 

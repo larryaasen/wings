@@ -18,7 +18,7 @@ void main() {
       expect(result.hasResult, isFalse);
       expect(result.result, isNull);
       expect(result.fail!['message'], 'missing cmd');
-      expect(result.fail!['_name'], 'shell');
+      expect(result.fail!['_name'], 'wings.shell');
     });
 
     test('run ls', () async {
@@ -33,7 +33,7 @@ void main() {
       expect(result.result!['exitCode'], '0');
       expect(result.result!['stdout'], 'pubspec.yaml\n');
       expect(result.result!['stderr'], '');
-      expect(result.result!['_name'], 'shell');
+      expect(result.result!['_name'], 'wings.shell');
     });
 
     test('run echo', () async {
@@ -48,7 +48,7 @@ void main() {
       expect(result.result!['exitCode'], '0');
       expect(result.result!['stdout'], 'hello\n');
       expect(result.result!['stderr'], '');
-      expect(result.result!['_name'], 'shell');
+      expect(result.result!['_name'], 'wings.shell');
     });
 
     test('run dart --version', () async {
@@ -65,7 +65,7 @@ void main() {
           result.result!['stdout'].toString().startsWith('Dart SDK version:'),
           isTrue);
       expect(result.result!['stderr'], '');
-      expect(result.result!['_name'], 'shell');
+      expect(result.result!['_name'], 'wings.shell');
     });
   });
 }

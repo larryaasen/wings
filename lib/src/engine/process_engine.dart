@@ -5,10 +5,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:intl/intl.dart';
 import 'package:yaml/yaml.dart' as yaml;
 
-import 'wings_commands.dart';
+import '../command_support/wings_commands.dart';
 
 class YamlLoader {
   /// Loads a playbook file and returns a list of the plays.
@@ -252,63 +251,3 @@ class Task {
 }
 
 /// NO GLOBALS! Use the context!
-
-class PlayContext {
-  final bool checkMode;
-
-  PlayContext({this.checkMode = false});
-}
-
-abstract class PlayFunction {}
-
-class SomeFunction extends PlayFunction {}
-
-enum PlayParameterType { string, bool }
-
-class PlayParameterDef<T> {
-  final T type;
-  final bool required;
-
-  PlayParameterDef({required this.type, this.required = true});
-}
-
-/// The result returned from the processing of a command.
-class CommandResult {
-  final Map<String, dynamic>? fail;
-  final Map<String, dynamic>? result;
-
-  CommandResult({this.fail, this.result}) {
-    assert(fail != null || result != null);
-  }
-
-  factory CommandResult.fail(Map<String, dynamic> fail) =>
-      CommandResult(fail: fail);
-  factory CommandResult.result(Map<String, dynamic> result) =>
-      CommandResult(result: result);
-  bool get didFail => fail != null;
-  bool get hasResult => result != null;
-
-  @override
-  String toString() {
-    return didFail ? 'fail: ${fail.toString()}' : result.toString();
-  }
-}
-
-class WingsLog {
-  static void message(String message, {String group = ''}) {
-    _output(message, group);
-  }
-
-  static void error(String message, {String group = ''}) {
-    _output(message, group);
-  }
-
-  static final formatterLogMilli = DateFormat('y/M/d H:mm:ss.SSS');
-  static final formatSystemLog = formatterLogMilli.format(DateTime.now());
-
-  static void _output(String message, String group) {
-    final groupMsg = group.isEmpty ? '' : " [$group]";
-    final timeMsg = formatSystemLog;
-    print("$timeMsg$groupMsg $message");
-  }
-}

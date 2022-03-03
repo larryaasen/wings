@@ -19,7 +19,7 @@ void main() {
       expect(result.result, isNull);
       expect(result.fail!['message'],
           'exception: FormatException: Cannot parse empty string into version');
-      expect(result.fail!['_name'], 'semver');
+      expect(result.fail!['_name'], 'wings.semver');
     });
 
     test('parse no version', () async {
@@ -33,7 +33,7 @@ void main() {
       expect(result.result, isNull);
       expect(result.fail!['message'],
           'exception: FormatException: Cannot parse empty string into version');
-      expect(result.fail!['_name'], 'semver');
+      expect(result.fail!['_name'], 'wings.semver');
     });
 
     test('parse invalid version', () async {
@@ -47,7 +47,7 @@ void main() {
       expect(result.result, isNull);
       expect(result.fail!['message'],
           'exception: FormatException: Not a properly formatted version string');
-      expect(result.fail!['_name'], 'semver');
+      expect(result.fail!['_name'], 'wings.semver');
     });
 
     test('parse invalid valid version with pre release', () async {

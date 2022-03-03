@@ -20,7 +20,7 @@ void main() {
       expect(result.hasResult, isFalse);
       expect(result.result, isNull);
       expect(result.fail!['message'], 'unknown action');
-      expect(result.fail!['_name'], 'version');
+      expect(result.fail!['_name'], 'wings.version');
     });
 
     test('verify missing directory', () async {
@@ -33,7 +33,7 @@ void main() {
       expect(result.hasResult, isFalse);
       expect(result.result, isNull);
       expect(result.fail!['message'], 'missing path');
-      expect(result.fail!['_name'], 'pubspec');
+      expect(result.fail!['_name'], 'wings.pubspec');
     });
 
     test('verify missing pubspec file', () async {
@@ -47,7 +47,7 @@ void main() {
       expect(result.result, isNull);
       expect(result.fail!['message'],
           'exception: FileSystemException: Cannot open file, path = \'/\' (OS Error: Is a directory, errno = 21)');
-      expect(result.fail!['_name'], 'pubspec');
+      expect(result.fail!['_name'], 'wings.pubspec');
     });
 
     test('verify file', () async {

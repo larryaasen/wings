@@ -4,8 +4,7 @@
 
 import 'package:version/version.dart';
 
-import 'process_engine.dart';
-import 'wings_commands.dart';
+import '../command_support/wings_commands.dart';
 
 class SemverCommand extends WingsCommand {
   @override

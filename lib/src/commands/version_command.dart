@@ -1,9 +1,8 @@
 import 'package:path/path.dart' as pathlib;
 
-import 'process_engine.dart';
+import '../command_support/wings_commands.dart';
 import 'pubspec_command.dart';
 import 'semver_command.dart';
-import 'wings_commands.dart';
 
 /// The version command verifys the version number in a pubspec. It can also
 /// update the version number in the pubspec.

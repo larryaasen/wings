@@ -60,3 +60,4 @@ Command [version] completed.
 
 # TODO
 1. The command version bump should also bump the iOS, Android version numbers.
+1. Document how to change out all of the commands.
