@@ -32,17 +32,18 @@ wings playbook <playbook_name>
 wings command <command_name>
 
 where command_name is:
-    - version
+    - debug
     - pubspec
     - semver
     - shell
+    - version
 ```
 
 ## Command: playbook
 
 ## Command: command
 
-### Action: verify
+### Action: version
 
 ```
 $ wings command version verify pubspecPath ./pubspec.yaml
@@ -61,3 +62,6 @@ Command [version] completed.
 # TODO
 1. The command version bump should also bump the iOS, Android version numbers.
 1. Document how to change out all of the commands.
+1. Maybe `wings command` should be `wings task`, to make it more clear, instead of 
+having a command called command.
+1. Create an agvtool command.

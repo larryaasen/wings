@@ -22,6 +22,9 @@ dependencies:
   # From dart.ninja: A Dart library for comparing and incrementing version numbers with Semantic Versioning.
   version:  ^2.0.0
 
+  # From lukas-renggli.ch: library for parsing, traversing, querying, transforming and building XML documents.
+  xml: ^5.3.1
+
   # From tools.dart.dev: A parser for YAML.
   yaml: ^3.1.0
 

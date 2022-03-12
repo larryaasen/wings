@@ -240,10 +240,14 @@ class Task {
   }
 
   void processFunctions() {}
+
   Future<bool> processCommand({required PlayContext context}) async {
     if (command != null) {
       final result = await command?.process(context: context, params: params);
-      print(result);
+      JsonEncoder encoder = JsonEncoder.withIndent('  ');
+      final pretty = encoder.convert(result);
+      print('pretty:');
+      print(pretty);
       return true;
     }
     return false;

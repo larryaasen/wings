@@ -1,5 +1,5 @@
 ---
-- name: Run all commands
+- name: Set version to a specific version
 
   tasks:
   - name: Verify pubspec version

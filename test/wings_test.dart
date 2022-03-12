@@ -3,6 +3,8 @@
  */
 
 import 'package:test/test.dart';
+import 'package:wings/src/commands/agvtool_command.dart';
+import 'package:wings/wings.dart';
 
 import '../bin/wings.dart';
 import 'helpers.dart';
@@ -46,6 +48,52 @@ void main() {
       print("done: $result");
     });
 
+    test('AgvtoolCommand Runner', () {
+      final agvtool = AgvtoolCommand();
+      final output = "Current version of project Runner is: \n    1.15.0";
+      final values = agvtool.parseWhatVersionResponse(output);
+      expect(values, isNotNull);
+      expect(values![0], 'Runner');
+      expect(values[1], '1.15.0');
+    });
+
+    test('AgvtoolCommand MyProject', () {
+      final agvtool = AgvtoolCommand();
+      final output = "Current version of project MyProject is: \n    2.2";
+      final values = agvtool.parseWhatVersionResponse(output);
+      expect(values, isNotNull);
+      expect(values![0], 'MyProject');
+      expect(values[1], '2.2');
+    });
+
+    test('AgvtoolCommand what-version fail', () async {
+      final agvtool = AgvtoolCommand();
+      final result = await agvtool
+          .process(context: PlayContext(), params: {'action': 'what-version'});
+      expect(result, isNotNull);
+      expect(result.didFail, isTrue);
+      expect(result.fail, isNotNull);
+      expect(
+          result.fail!['message']
+              .toString()
+              .startsWith('There are no Xcode project files in this directory'),
+          isTrue);
+      expect(result.fail!['_name'], 'wings.agvtool');
+      expect(result.hasResult, isFalse);
+      expect(result.result, isNull);
+    });
+
+    test('AgvtoolCommand what-version', () async {
+      final agvtool = AgvtoolCommand();
+      final result = await agvtool
+          .process(context: PlayContext(), params: {'action': 'what-version'});
+      expect(result, isNotNull);
+      expect(result.hasResult, isTrue);
+      expect(result.result, isNotNull);
+      expect(result.result!['name'], 'Runner');
+      expect(result.result!['version'], '1.15.0');
+    });
+
     test('createArgumentRunner', () {
       final wings = WingsApp();
       final runner = wings.createArgumentRunner();
@@ -66,7 +114,8 @@ void main() {
       expect(command.usage.startsWith(command.description), isTrue);
       print(command.usage);
 
-      expect(command.subcommands.length, 5);
+      expect(command.subcommands.length, 6);
+      expect(command.subcommands['wings.agvtool']!.name, 'wings.agvtool');
       expect(command.subcommands['wings.debug']!.name, 'wings.debug');
       expect(command.subcommands['wings.pubspec']!.name, 'wings.pubspec');
       expect(command.subcommands['wings.semver']!.name, 'wings.semver');

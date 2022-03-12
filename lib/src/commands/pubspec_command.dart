@@ -54,21 +54,18 @@ class PubspecCommand extends WingsCommand {
   }
 
   Future<CommandResult> _readAction(
-      {required PlayContext context,
-      required Map<String, dynamic> params}) async {
+      {required PlayContext context, required Map<String, dynamic> params}) async {
     if (params['path'] == null) {
       return fail({'message': 'missing path'});
     }
     // specify the path to the pubspec.yaml file.
     var path = params['path'];
-    path = pathlib.absolute(path);
+    path = pathlib.normalize(pathlib.absolute(path));
 
     try {
       // load pubSpec
       var pubSpec = await PubSpec.loadFile(path);
-      return CommandResult.result(pubSpec
-          .toJson()
-          .map((key, value) => MapEntry(key.toString(), value)));
+      return CommandResult.result(pubSpec.toJson().map((key, value) => MapEntry(key.toString(), value)));
     } on Exception catch (e) {
       return fail({'message': 'exception: $e'});
     }
@@ -79,8 +76,7 @@ class PubspecCommand extends WingsCommand {
   /// - path:
   /// - version:
   Future<CommandResult> _updateAction(
-      {required PlayContext context,
-      required Map<String, dynamic> params}) async {
+      {required PlayContext context, required Map<String, dynamic> params}) async {
     var path = params['path'];
     path = pathlib.absolute(path);
     if (!await File(path).exists()) {
@@ -94,11 +90,10 @@ class PubspecCommand extends WingsCommand {
     return fail({'message': 'nothing to update'});
   }
 
-  Future<CommandResult> _updateVersion(
-      PlayContext context, String version, String path) async {
+  Future<CommandResult> _updateVersion(PlayContext context, String version, String path) async {
     final semverCommand = SemverCommand();
-    final semverResult = await semverCommand.process(
-        context: context, params: {'action': 'parse', 'version': version});
+    final semverResult =
+        await semverCommand.process(context: context, params: {'action': 'parse', 'version': version});
     if (semverResult.didFail) {
       return fail(semverResult.fail!);
     }

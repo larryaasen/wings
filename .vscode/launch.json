@@ -8,8 +8,9 @@
             "name": "wings",
             "request": "launch",
             "type": "dart",
-            "program": "bin/wings.dart",
-            "args": ["playbook", "test/playbooks/p1.yaml", "p2"]
+            "cwd": "/Users/larry/Projects/auto_flutter",
+            "program": "../wings/bin/wings.dart",
+            "args": ["command", "wings.version", "action:", "verify", "pubspecPath:", "./pubspec.yaml"]
         }
     ]
 }

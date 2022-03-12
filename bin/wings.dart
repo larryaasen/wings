@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
@@ -121,7 +122,16 @@ class CLICommand extends Command {
     }
     final result =
         await wingsCommand.process(context: PlayContext(), params: params);
-    print(result);
+    JsonEncoder encoder = JsonEncoder.withIndent('  ');
+    if (result.didFail) {
+      print('FAIL:');
+      final pretty = encoder.convert(result.fail);
+      print(pretty);
+    } else {
+      print('RESULT:');
+      final pretty = encoder.convert(result.result);
+      print(pretty);
+    }
   }
 }
 
